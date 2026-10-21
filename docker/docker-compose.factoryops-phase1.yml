@@ -1,0 +1,32 @@
++services:
+  factoryops-db:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: factoryops
+      POSTGRES_USER: factoryops
+      POSTGRES_PASSWORD: factoryops_local_only
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U factoryops -d factoryops"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+    ports:
+      - "5432:5432"
+    volumes:
+      - factoryops-postgresql:/var/lib/postgresql/data
+
+  factoryops-api:
+    build:
+      context: ..
+      dockerfile: docker/factoryops/Dockerfile
+    environment:
+      FACTORYOPS_DATABASE_URL: postgresql+psycopg://factoryops:factoryops_local_only@factoryops-db:5432/factoryops
+      FACTORYOPS_SEED_DATA: "true"
+    depends_on:
+      factoryops-db:
+        condition: service_healthy
+    ports:
+      - "8001:8001"
+
+volumes:
+  factoryops-postgresql:

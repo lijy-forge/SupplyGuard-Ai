@@ -1,0 +1,12 @@
+INSERT INTO suppliers VALUES ('sup-001',0,CURRENT_TIMESTAMP,CURRENT_TIMESTAMP,'SUP-001','Apex Braking Systems','Tier-1','CN','ACTIVE','HIGH');
+INSERT INTO parts VALUES ('part-001',0,CURRENT_TIMESTAMP,CURRENT_TIMESTAMP,'PART-001','Brake Pressure Sensor','Safety','Range 0-250 bar; tolerance ±1.0%','ACTIVE');
+INSERT INTO vehicle_models VALUES ('model-a',0,CURRENT_TIMESTAMP,CURRENT_TIMESTAMP,'VM-A','Falcon A','EV-A','ACTIVE'),('model-b',0,CURRENT_TIMESTAMP,CURRENT_TIMESTAMP,'VM-B','Falcon B','EV-B','ACTIVE');
+INSERT INTO supplier_parts VALUES ('sp-001',0,CURRENT_TIMESTAMP,CURRENT_TIMESTAMP,'sup-001','part-001','ABS-BPS-77',21,'ACTIVE');
+INSERT INTO bom_items VALUES ('bom-001',0,CURRENT_TIMESTAMP,CURRENT_TIMESTAMP,'model-a','part-001',2.000,'2026.1','2026-01-01',NULL),('bom-002',0,CURRENT_TIMESTAMP,CURRENT_TIMESTAMP,'model-b','part-001',2.000,'2026.1','2026-01-01',NULL);
+INSERT INTO batches VALUES ('batch-001',0,CURRENT_TIMESTAMP,CURRENT_TIMESTAMP,'BATCH-001','part-001','sup-001','2026-09-01 08:00:00','2026-09-05 10:00:00',5000,'QUARANTINED');
+INSERT INTO inspection_records VALUES ('insp-001',0,CURRENT_TIMESTAMP,CURRENT_TIMESTAMP,'INSP-001','batch-001','INCOMING','pressure_accuracy',1.680000,-1.000000,1.000000,'FAIL','2026-09-05 11:00:00');
+INSERT INTO quality_issues VALUES ('issue-001',0,CURRENT_TIMESTAMP,CURRENT_TIMESTAMP,'ISSUE-001','Sensor accuracy out of tolerance','Incoming inspection detected a +1.68% deviation.','CRITICAL','OPEN','2026-09-05 11:05:00','INCOMING_INSPECTION');
+INSERT INTO quality_issue_batches VALUES ('qib-001',0,CURRENT_TIMESTAMP,CURRENT_TIMESTAMP,'issue-001','batch-001');
+INSERT INTO quality_cases VALUES ('case-001',0,CURRENT_TIMESTAMP,CURRENT_TIMESTAMP,'CASE-001','Brake sensor containment','Investigate affected vehicles and initiate supplier containment.','P0','OPEN','quality.lead','2026-09-05 12:00:00',NULL);
+INSERT INTO quality_case_issues VALUES ('qci-001',0,CURRENT_TIMESTAMP,CURRENT_TIMESTAMP,'case-001','issue-001');
+INSERT INTO documents VALUES ('doc-001',0,CURRENT_TIMESTAMP,CURRENT_TIMESTAMP,'SOP-QA-017','Supplier Quality Containment SOP','SOP','3.2','documents/SOP-QA-017.md','ACTIVE');

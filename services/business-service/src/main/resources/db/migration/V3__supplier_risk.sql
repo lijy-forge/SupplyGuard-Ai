@@ -1,0 +1,5 @@
+-- All supplier names and metrics below are fictional demonstration data.
+CREATE TABLE supplier_risk_metrics (supplier_id VARCHAR(36) PRIMARY KEY, on_time_rate DECIMAL(5,2) NOT NULL, defect_ppm INT NOT NULL, capacity_units INT NOT NULL, qualified BOOLEAN NOT NULL, FOREIGN KEY(supplier_id) REFERENCES suppliers(id));
+INSERT INTO suppliers VALUES ('sup-002',0,CURRENT_TIMESTAMP,CURRENT_TIMESTAMP,'SUP-002','Demo Nordic Sensors','Tier-1','SE','ACTIVE','LOW'),('sup-003',0,CURRENT_TIMESTAMP,CURRENT_TIMESTAMP,'SUP-003','Demo Alpine Electronics','Tier-1','DE','ACTIVE','MEDIUM'),('sup-004',0,CURRENT_TIMESTAMP,CURRENT_TIMESTAMP,'SUP-004','Demo Pending Sensors','Tier-2','CN','ACTIVE','HIGH');
+INSERT INTO supplier_parts VALUES ('sp-002',0,CURRENT_TIMESTAMP,CURRENT_TIMESTAMP,'sup-002','part-001','DEMO-BPS-2',14,'ACTIVE'),('sp-003',0,CURRENT_TIMESTAMP,CURRENT_TIMESTAMP,'sup-003','part-001','DEMO-BPS-3',28,'ACTIVE'),('sp-004',0,CURRENT_TIMESTAMP,CURRENT_TIMESTAMP,'sup-004','part-001','DEMO-BPS-4',10,'ACTIVE');
+INSERT INTO supplier_risk_metrics VALUES ('sup-001',72,8000,3000,TRUE),('sup-002',98,120,8000,TRUE),('sup-003',88,1800,5000,TRUE),('sup-004',99,50,9000,FALSE);

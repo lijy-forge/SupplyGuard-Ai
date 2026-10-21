@@ -1,0 +1,9 @@
+# Opt-in, in-memory fictional data only. Never use for production.
+spring:
+  datasource:
+    url: ${FACTORYOPS_RISK_DEMO_DB:jdbc:h2:mem:riskdemo;MODE=MySQL;DATABASE_TO_LOWER=TRUE;DB_CLOSE_DELAY=-1}
+    username: sa
+    password: ""
+factoryops:
+  outbox:
+    enabled: false

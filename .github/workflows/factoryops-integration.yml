@@ -1,0 +1,48 @@
+name: SupplyGuard Live Infrastructure Integration
+on:
+  push:
+    branches: [feat/factoryops-rearchitecture]
+  workflow_dispatch:
+jobs:
+  live-infrastructure:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: {python-version: '3.12'}
+      - uses: actions/setup-java@v4
+        with: {distribution: temurin, java-version: '21', cache: maven}
+      - name: Build the business runtime artifact
+        working-directory: services/business-service
+        run: mvn --batch-mode -DskipTests package
+      - name: Build and start the complete stack
+        run: docker compose -f docker/docker-compose.factoryops.yml up -d --build
+      - name: Wait for Compose health
+        run: |
+          for service in mysql redis rabbitmq neo4j qdrant business-service agent-service frontend; do
+            for i in $(seq 1 60); do
+              id=$(docker compose -f docker/docker-compose.factoryops.yml ps -q "$service")
+              status=$(docker inspect -f '{{.State.Health.Status}}' "$id" 2>/dev/null || true)
+              test "$status" = healthy && break
+              docker compose -f docker/docker-compose.factoryops.yml ps
+              test "$i" = 60 && exit 1
+              sleep 5
+            done
+          done
+          docker compose -f docker/docker-compose.factoryops.yml ps
+      - name: Load real graph and vector fixtures
+        run: |
+          docker compose -f docker/docker-compose.factoryops.yml exec -T agent-service python -c "from factoryops_agent.indexing import sync_golden_graph,index_documents; sync_golden_graph(); print(index_documents())"
+      - name: Run live SQL graph vector and HITL verification
+        run: |
+          python -m pip install -e services/agent-service
+          python services/agent-service/tests/live_infra.py
+      - name: Service status and logs on failure
+        if: failure()
+        run: |
+          docker compose -f docker/docker-compose.factoryops.yml ps
+          docker compose -f docker/docker-compose.factoryops.yml logs --no-color
+      - name: Tear down complete stack
+        if: always()
+        run: docker compose -f docker/docker-compose.factoryops.yml down -v
