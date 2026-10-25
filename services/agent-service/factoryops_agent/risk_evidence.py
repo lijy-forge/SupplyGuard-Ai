@@ -1,11 +1,14 @@
 """Adapters reuse existing graph/vector tools; synthetic evidence never enables approval."""
 import json
+import logging
 import os
 import subprocess
 import sys
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timezone
 import httpx
+
+log=logging.getLogger("supplyguard.evidence")
 
 def business_base():
     return os.getenv("FACTORYOPS_BUSINESS_URL","http://localhost:8081/api/v1").rstrip("/")
@@ -47,7 +50,8 @@ def collect_evidence(request, structured=None, graph=None, documents=None, mode=
             if not isinstance(payload,dict):raise ValueError("invalid evidence")
             present=bool(payload.get("cases")) if kind=="STRUCTURED" else bool(payload.get("vehicles")) if kind=="GRAPH" else bool(payload.get("matches"))
             evidence.update(status="AVAILABLE" if present else "EMPTY",payload=payload)
-        except Exception:
+        except Exception as exc:
+            log.warning("%s evidence unavailable for %s: %s: %s",kind,request["part_number"],type(exc).__name__,exc)
             evidence["status"]="UNAVAILABLE"
         return evidence
     with ThreadPoolExecutor(max_workers=3) as pool:

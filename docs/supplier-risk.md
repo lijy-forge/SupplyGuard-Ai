@@ -40,7 +40,7 @@ flowchart TD
 | demo | 实查业务数据，展示明确标注 DEMO 的图谱与规范资料；禁止批准 |
 | live | 调用实际 Neo4j 和规范检索适配器；只有三源证据 AVAILABLE、一致且存在备选时才允许进入待审核状态 |
 
-完整 Compose 已配置 live。它仍需要原 Neo4j/Qdrant 数据初始化与所有基础设施。本次未启动这些外部服务，不能声称已完成真实图谱/向量端到端联调。
+完整 Compose 已配置 live。2026-10-26 已在本地完整 Compose 上联调通过：真实 MySQL、Neo4j（共同上游 `UP-DEMO-001`）和 Qdrant（命中 `DOC-SOURCING-001` 等 4 篇）三源证据均为 AVAILABLE，推荐 SUP-002，评审幂等创建、批准、重复批准、Outbox 投递与 worker 消费均只发生一次。该流程已加入 `tests/live_infra.py`，由 CI 集成工作流覆盖。
 
 ## Windows 启动（无 Docker 的演示方式）
 

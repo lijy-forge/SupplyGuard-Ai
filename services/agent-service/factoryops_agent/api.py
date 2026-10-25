@@ -5,6 +5,7 @@ from redis import Redis
 from .graph import build_graph, redis_checkpointer
 from .models import RunRequest, ResumeRequest
 from .config import settings
+from .observability import configure_logging
 import json
 
 @asynccontextmanager
@@ -14,6 +15,7 @@ async def lifespan(app):
     # after an agent-service restart.
     app.state.graph=build_graph(redis_checkpointer()); yield
 
+configure_logging()
 app=FastAPI(title="FactoryOps Agent Service",version="0.1.0",lifespan=lifespan)
 def config(thread_id): return {"configurable":{"thread_id":thread_id}}
 def input_key(thread_id): return f"factoryops:run-input:{thread_id}"

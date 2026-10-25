@@ -20,7 +20,8 @@ class LlmProvider(Protocol):
 
 class OpenAICompatibleProvider:
     def __init__(self,client:httpx.Client|None=None):
-        self.client=client or httpx.Client(timeout=settings.llm_timeout_seconds)
+        # Short connect timeout: an unreachable address fails fast and the next resolved address is tried.
+        self.client=client or httpx.Client(timeout=httpx.Timeout(settings.llm_timeout_seconds,connect=settings.llm_connect_timeout_seconds))
     def complete(self,prompt:str)->str:
         body={"model":settings.openai_model,"temperature":0,
               "messages":[{"role":"system","content":"You are a manufacturing quality analyst. Reply with one JSON object only, no prose, no code fences."},{"role":"user","content":prompt}]}
@@ -28,13 +29,20 @@ class OpenAICompatibleProvider:
         response=self.client.post(f"{settings.openai_base_url.rstrip('/')}/chat/completions",headers={"Authorization":f"Bearer {settings.openai_api_key}"},json=body)
         response.raise_for_status(); return response.json()["choices"][0]["message"]["content"]
 
+_shared:OpenAICompatibleProvider|None=None
+
 def provider()->LlmProvider|None:
-    """Return the configured provider, or None so callers use their deterministic template."""
+    """Return the configured provider, or None so callers use their deterministic template.
+
+    The provider is shared so its HTTP connection pool (and keep-alive) survives across requests.
+    """
+    global _shared
     if settings.llm_provider!="openai-compatible": return None
     if not settings.openai_base_url or not settings.openai_api_key:
         log.warning("llm_provider=openai-compatible but base URL or API key is missing; using templates")
         return None
-    return OpenAICompatibleProvider()
+    if _shared is None: _shared=OpenAICompatibleProvider()
+    return _shared
 
 class ContainmentRecommendation(BaseModel):
     conclusion: str = Field(min_length=1,max_length=1000)

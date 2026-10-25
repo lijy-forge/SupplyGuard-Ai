@@ -63,3 +63,15 @@ def test_exporter_failure_never_breaks_the_node(monkeypatch):
 def test_langfuse_disabled_without_credentials(monkeypatch):
     monkeypatch.delenv("LANGFUSE_PUBLIC_KEY",raising=False)
     assert observability.langfuse_client() is None
+
+def test_configure_logging_emits_info_traces_without_app_logging(capsys):
+    import logging as lg
+    root=lg.getLogger("supplyguard"); saved=(list(root.handlers),root.level)
+    root.handlers.clear()
+    try:
+        observability.configure_logging(); observability.configure_logging()  # idempotent
+        assert len(root.handlers)==1
+        observability.traced("t","node",lambda s:{"y":1})({"x":1})
+        assert '"span": "t.node"' in capsys.readouterr().err
+    finally:
+        root.handlers[:]=saved[0]; root.setLevel(saved[1])

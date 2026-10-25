@@ -17,6 +17,15 @@ except ImportError:
 log=logging.getLogger("supplyguard.trace")
 PREVIEW_CHARS=2000
 
+def configure_logging(level=logging.INFO):
+    """Uvicorn configures only its own loggers; without this, INFO trace lines are silently dropped."""
+    root=logging.getLogger("supplyguard")
+    if not root.handlers:
+        handler=logging.StreamHandler()
+        handler.setFormatter(logging.Formatter("%(asctime)s %(levelname)s %(name)s %(message)s"))
+        root.addHandler(handler)
+    root.setLevel(level)
+
 def langfuse_client():
     if get_client is None or not os.getenv("LANGFUSE_PUBLIC_KEY"): return None
     try: return get_client()

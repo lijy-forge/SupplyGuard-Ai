@@ -18,8 +18,8 @@ def models_of(rows): return sorted({r["model"] for r in rows if r.get("model")})
 def containment_prompt(s):
     lines=[f"- id={e['id']} type={e['source_type']} status={e['status']} claim={e['claim']} payload={json.dumps(e['payload'],default=str,ensure_ascii=False)[:1500]}" for e in s["evidence"]]
     return (f"Quality case {s['case_number']}, part {s['part_number']}, batch {s['batch_number']}.\nQuestion: {s['question']}\nEvidence:\n"+"\n".join(lines)+
-            "\nUsing only this evidence, return JSON with keys: conclusion (string), evidence_ids (ids of AVAILABLE evidence above that support the conclusion), "
-            "actions (list of concrete containment steps), confidence (0 to 1). Do not invent evidence ids.")
+            "\nUsing only this evidence, return JSON with keys: conclusion (at most 4 sentences and under 600 characters), evidence_ids (ids of AVAILABLE evidence above that support the conclusion), "
+            "actions (at most 6 concrete containment steps), confidence (0 to 1). Do not invent evidence ids.")
 
 def build_graph(checkpointer=None,business=None,graph=None,documents=None,llm=CONFIGURED):
     business=business or BusinessTools(); graph=graph or GraphTools(); documents=documents or DocumentTools()

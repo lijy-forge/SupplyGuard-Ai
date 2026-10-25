@@ -16,6 +16,7 @@ class Settings(BaseSettings):
     openai_api_key: str = ""
     openai_model: str = "gpt-4.1-mini"
     llm_timeout_seconds: float = 30
+    llm_connect_timeout_seconds: float = 5
     llm_json_mode: bool = False  # send response_format=json_object (supported by OpenAI and DeepSeek)
 
 settings = Settings()

@@ -69,7 +69,9 @@ def test_provider_requires_credentials(monkeypatch):
     assert llm_module.provider() is None
     monkeypatch.setattr(llm_module.settings,"openai_base_url","https://llm.example/v1")
     monkeypatch.setattr(llm_module.settings,"openai_api_key","k")
-    assert isinstance(llm_module.provider(),llm_module.OpenAICompatibleProvider)
+    monkeypatch.setattr(llm_module,"_shared",None)
+    first=llm_module.provider()
+    assert isinstance(first,llm_module.OpenAICompatibleProvider) and llm_module.provider() is first
 
 def test_json_mode_adds_response_format(monkeypatch):
     monkeypatch.setattr(llm_module.settings,"openai_base_url","https://api.deepseek.com")
@@ -81,3 +83,8 @@ def test_json_mode_adds_response_format(monkeypatch):
     llm_module.OpenAICompatibleProvider(httpx.Client(transport=httpx.MockTransport(handler))).complete("p")
     assert seen["url"]=="https://api.deepseek.com/chat/completions"
     assert seen["body"]["response_format"]=={"type":"json_object"}
+
+def test_connect_timeout_is_short_and_separate(monkeypatch):
+    monkeypatch.setattr(llm_module.settings,"llm_timeout_seconds",60)
+    timeout=llm_module.OpenAICompatibleProvider().client.timeout
+    assert timeout.connect==5 and timeout.read==60

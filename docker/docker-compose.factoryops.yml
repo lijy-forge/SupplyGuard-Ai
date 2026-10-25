@@ -34,7 +34,8 @@ services:
     environment: {FACTORYOPS_MYSQL_URL: "jdbc:mysql://mysql:3306/factoryops?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC", FACTORYOPS_MYSQL_USER: factoryops, FACTORYOPS_MYSQL_PASSWORD: factoryops, FACTORYOPS_RABBITMQ_HOST: rabbitmq, FACTORYOPS_RABBITMQ_USER: guest, FACTORYOPS_RABBITMQ_PASSWORD: guest}
     ports: ["8081:8081"]
     depends_on: {mysql: {condition: service_healthy}, rabbitmq: {condition: service_healthy}}
-    healthcheck: {test: ["CMD","java","-version"], interval: 10s, timeout: 5s, retries: 30}
+    # Healthy only once Spring Boot is listening (after Flyway migrations), not merely when a JVM exists.
+    healthcheck: {test: ["CMD","bash","-c","exec 3<>/dev/tcp/127.0.0.1/8081"], interval: 10s, timeout: 5s, retries: 30, start_period: 30s}
   agent-service:
     build: ../services/agent-service
     environment: {FACTORYOPS_RISK_EVIDENCE_MODE: live, FACTORYOPS_BUSINESS_URL: "http://business-service:8081/api/v1", FACTORYOPS_REDIS_URL: "redis://redis:6379/0", FACTORYOPS_NEO4J_URI: "bolt://neo4j:7687", FACTORYOPS_QDRANT_URL: "http://qdrant:6333", FACTORYOPS_RABBITMQ_URL: "amqp://guest:guest@rabbitmq:5672/%2F"}
@@ -44,6 +45,7 @@ services:
   agent-worker:
     build: ../services/agent-service
     command: ["python","-m","factoryops_agent.worker"]
+    restart: on-failure  # RabbitMQ may still be booting on first connect
     environment: {FACTORYOPS_REDIS_URL: "redis://redis:6379/0", FACTORYOPS_RABBITMQ_URL: "amqp://guest:guest@rabbitmq:5672/%2F"}
     depends_on: {redis: {condition: service_healthy}, rabbitmq: {condition: service_healthy}}
   frontend:

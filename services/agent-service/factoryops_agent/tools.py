@@ -38,10 +38,10 @@ class GraphTools:
 
     def risk_context(self, part_number: str, current_supplier: str) -> dict:
         from neo4j import Query
-        driver=GraphDatabase.driver(settings.neo4j_uri,auth=(settings.neo4j_user,settings.neo4j_password),connection_timeout=3,connection_acquisition_timeout=3)
+        driver=GraphDatabase.driver(settings.neo4j_uri,auth=(settings.neo4j_user,settings.neo4j_password),connection_timeout=5,connection_acquisition_timeout=5)
         try:
             with driver.session(database="neo4j") as session:
-                vehicles=[dict(r) for r in session.run(Query("MATCH (p:Part {partNumber:$part})<-[:USES]-(v:VehicleModel) RETURN DISTINCT v.modelCode AS model,v.name AS name",timeout=5),part=part_number)]
+                vehicles=[dict(r) for r in session.run(Query("MATCH (p:Part {partNumber:$part})<-[:USES]-(v:VehicleModel) RETURN DISTINCT v.modelCode AS model,v.name AS name",timeout=10),part=part_number)]
                 shared=[dict(r) for r in session.run(Query("""
                     MATCH (current:Supplier {code:$current})-[:DEPENDS_ON*1..3]->(u:Supplier)
                     MATCH (candidate:Supplier)-[:SUPPLIES]->(:Part {partNumber:$part})
@@ -49,7 +49,7 @@ class GraphTools:
                     WHERE candidate.code <> $current
                     RETURN DISTINCT candidate.code AS supplier,u.code AS upstream,u.name AS name
                     ORDER BY supplier,upstream LIMIT 100
-                    """,timeout=5),part=part_number,current=current_supplier)]
+                    """,timeout=10),part=part_number,current=current_supplier)]
             return {"part_number":part_number,"current_supplier":current_supplier,"vehicles":vehicles,"shared_dependencies":shared}
         finally:
             driver.close()

@@ -1,7 +1,7 @@
 name: SupplyGuard Live Infrastructure Integration
 on:
   push:
-    branches: [feat/factoryops-rearchitecture]
+    branches: [main]
   workflow_dispatch:
 jobs:
   live-infrastructure:

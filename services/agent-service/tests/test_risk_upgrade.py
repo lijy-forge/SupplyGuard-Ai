@@ -114,3 +114,10 @@ def test_concurrent_create_conflict_recovers_winning_snapshot(monkeypatch):
     monkeypatch.setattr(risk,"assess",lambda _: {})
     result=risk.create_review(risk.ReviewRequest(request_key="race",request=risk.AssessmentRequest(**request())))
     assert result["id"]=="winner"
+
+def test_adapter_failure_is_logged(caplog):
+    def down(_): raise ConnectionError("neo4j refused")
+    with caplog.at_level("WARNING",logger="supplyguard.evidence"):
+        items=collect_evidence(request(),structured=lambda _:{"cases":[{"supplierCode":"SUP-001"}]},graph=down,documents=lambda _:{"matches":[{"id":"d","text":"t","score":0.9}]},mode="live")
+    assert {e["source_type"]:e["status"] for e in items}["GRAPH"]=="UNAVAILABLE"
+    assert "GRAPH evidence unavailable for PART-001: ConnectionError: neo4j refused" in caplog.text

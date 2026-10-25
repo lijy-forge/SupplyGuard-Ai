@@ -1,5 +1,5 @@
 """Run only against docker-compose.factoryops.yml on a real Docker daemon."""
-import json, os, subprocess, time, urllib.request
+import json, os, subprocess, time, urllib.request, uuid
 
 COMPOSE=["docker","compose","-f","docker/docker-compose.factoryops.yml"]
 def compose(*args): return subprocess.check_output([*COMPOSE,*args],text=True).strip()
@@ -60,6 +60,34 @@ def main():
     assert "action_result" in rejected, rejected
     assert rejected["action_result"]["status"]=="REJECTED"
     assert int(sql("SELECT COUNT(*) FROM corrective_actions;"))==reject_before
+    risk=live_supplier_risk()
     dimensions=collection["config"]["params"]["vectors"]["size"]
-    print(json.dumps({"status":"PASS","neo4j_nodes":nodes,"neo4j_relationships":rels,"qdrant_vectors":collection["points_count"],"embedding_dimension":dimensions,"action_id":action_id,"evidence":sorted(kinds)},ensure_ascii=False))
+    print(json.dumps({"status":"PASS","neo4j_nodes":nodes,"neo4j_relationships":rels,"qdrant_vectors":collection["points_count"],"embedding_dimension":dimensions,"action_id":action_id,"evidence":sorted(kinds),"supplier_risk":risk},ensure_ascii=False))
+
+def live_supplier_risk():
+    """Supplier-risk flow on live MySQL, Neo4j and Qdrant: assess, persist, approve once, deliver the event."""
+    base="http://127.0.0.1:8082/api/v1/supplier-risk"
+    body={"part_number":"PART-001","current_supplier":"SUP-001","case_number":"CASE-001"}
+    assessed=request(f"{base}/assess","POST",body)
+    status={e["source_type"]:e["status"] for e in assessed["evidence"]}
+    assert status=={"STRUCTURED":"AVAILABLE","GRAPH":"AVAILABLE","DOCUMENT":"AVAILABLE"},(status,assessed["warnings"])
+    assert assessed["analysis_status"]=="READY_FOR_REVIEW",assessed["warnings"]
+    assert [r["supplierCode"] for r in assessed["recommendations"]]==["SUP-002"]
+    sup2=next(r for r in assessed["assessments"] if r["supplierCode"]=="SUP-002")
+    assert sup2["graph_penalty"]==15 and sup2["risk_score"]==29.69, sup2
+    assert assessed["narrative"]["summary"]
+    key=f"live-{uuid.uuid4().hex[:12]}"
+    review=request(f"{base}/reviews","POST",{"request_key":key,"request":body})
+    assert review["status"]=="PENDING_REVIEW", review["status"]
+    assert request(f"{base}/reviews","POST",{"request_key":key,"request":body})["id"]==review["id"]
+    decision={"version":review["version"],"approved":True,"supplier_code":"SUP-002","actor":"procurement.lead","reason":"live verification"}
+    approved=request(f"{base}/reviews/{review['id']}/decision","POST",decision)
+    assert approved["status"]=="APPROVED" and approved["action_id"], approved
+    assert request(f"{base}/reviews/{review['id']}/decision","POST",decision)["action_id"]==approved["action_id"]
+    correlation=f"risk-review-{review['id']}"
+    assert int(sql(f"SELECT COUNT(*) FROM corrective_actions WHERE correlation_id='{correlation}';"))==1
+    assert int(sql(f"SELECT COUNT(*) FROM outbox_events WHERE correlation_id='{correlation}';"))==1
+    wait_for(lambda: compose("exec","-T","redis","redis-cli","EXISTS",f"factoryops:consumer:{approved['action_id']}")=="1","risk review event consumed")
+    return {"review_id":review["id"],"action_id":approved["action_id"],"recommendations":["SUP-002"],"narrative_source":assessed["narrative"]["source"],
+            "document_matches":[m["id"] for e in assessed["evidence"] if e["source_type"]=="DOCUMENT" for m in e["payload"]["matches"]]}
 if __name__=="__main__": main()

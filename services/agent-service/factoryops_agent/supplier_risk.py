@@ -9,7 +9,7 @@ from fastapi import FastAPI, APIRouter, HTTPException
 from pydantic import BaseModel, Field, ValidationError
 from langgraph.graph import StateGraph, START, END
 from .llm import RiskNarrative, generate, provider
-from .observability import traced
+from .observability import traced, configure_logging
 
 CONFIGURED=object()  # sentinel: use the LLM provider selected by settings
 
@@ -62,7 +62,7 @@ def narrative_prompt(state):
             f"Status: {state['analysis_status']}\nCurrent supplier: {state['request']['current_supplier']}\n"
             f"Assessments: {json.dumps(rows)}\nRecommended order: {[r['supplierCode'] for r in state['recommendations']]}\n"
             f"Warnings: {json.dumps(state['warnings'])}\nEvidence: {json.dumps(evidence)}\n"
-            "Return JSON with keys: summary (string), key_risks (list of strings), evidence_ids (ids from Evidence that you relied on).")
+            "Return JSON with keys: summary (at most 5 sentences and under 900 characters), key_risks (at most 5 short strings), evidence_ids (ids from Evidence that you relied on).")
 
 def build_risk_graph(fetch=None, evidence_provider=None, llm=CONFIGURED):
     fetch = fetch or fetch_candidates
@@ -197,5 +197,6 @@ def get_audit(review_id:str):
 @router.post("/api/v1/supplier-risk/reviews/{review_id}/decision")
 def decide_review(review_id:str,body:ReviewDecision):
     return business_request("POST",f"/supplier-risk/reviews/{review_id}/decision",body.model_dump())
+configure_logging()
 app=FastAPI(title="Supplier Risk Agent")
 app.include_router(router)
