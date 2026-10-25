@@ -4,7 +4,8 @@ import { Alert, Button, Card, Collapse, Input, InputNumber, Select, Space, Table
 type Request = { part_number: string; current_supplier: string; case_number: string; required_units: number; max_lead_days: number }
 type Row = { supplierCode: string; name: string; base_score: number; graph_penalty: number; risk_score: number; risk_level: string; exclusions: string[]; risk_factors?: string[] }
 type Evidence = { id: string; source_type: string; status: string; retrieved_at: string; payload: Record<string, unknown> }
-type Result = { request: Request; assessments: Row[]; recommendations: Row[]; warnings: string[]; method: string; evidence: Evidence[]; analysis_status: string; explanation: string; scenario: { relaxed_max_lead_days: number; eligible_if_deadline_relaxed: string[] } }
+type Narrative = { source: 'llm' | 'template'; summary: string; key_risks: string[]; evidence_ids: string[]; fallback_reason: string | null }
+type Result = { request: Request; assessments: Row[]; recommendations: Row[]; warnings: string[]; method: string; evidence: Evidence[]; analysis_status: string; explanation: string; scenario: { relaxed_max_lead_days: number; eligible_if_deadline_relaxed: string[] }; narrative?: Narrative }
 type Review = { id: string; status: string; version: number; snapshot: Result; action_id: string | null; decision: unknown }
 type Audit = { action: string; actor: string; result: string; created_at: string }
 const prefix = '/agent-api/api/v1/supplier-risk'
@@ -78,6 +79,12 @@ export default function SupplierRisk() {
     {result && <>
       <Tag color={result.analysis_status === 'READY_FOR_REVIEW' ? 'green' : 'orange'}>{result.analysis_status === 'READY_FOR_REVIEW' ? '证据完整，可提交审核' : '证据不足或无可用供方，批准受阻'}</Tag>
       <Alert message={result.method} description={result.explanation} />
+      {result.narrative && <Card title={<Space>风险说明<Tag color={result.narrative.source === 'llm' ? 'purple' : 'default'}>{result.narrative.source === 'llm' ? '大模型生成' : '规则模板'}</Tag></Space>}>
+        <Typography.Paragraph>{result.narrative.summary}</Typography.Paragraph>
+        {result.narrative.key_risks.length > 0 && <ul>{result.narrative.key_risks.map((r, i) => <li key={i}>{r}</li>)}</ul>}
+        {result.narrative.evidence_ids.length > 0 && <Typography.Text type="secondary">引用证据：{result.narrative.evidence_ids.join('、')}</Typography.Text>}
+        <Alert style={{ marginTop: 8 }} type="info" message="说明文字仅供阅读；评分、排除原因和推荐顺序均由规则计算，大模型不会改变推荐结果。" />
+      </Card>}
       {result.warnings.map((w, i) => <Alert key={i} type="warning" message={w} />)}
       <Card title="风险看板"><Table rowKey="supplierCode" dataSource={result.assessments} pagination={false} scroll={{ x: 850 }} columns={[{ title: '供方', dataIndex: 'name' }, { title: '指标基础分', dataIndex: 'base_score' }, { title: '共同上游附加分', dataIndex: 'graph_penalty' }, { title: '综合风险（越低越好）', dataIndex: 'risk_score' }, { title: '等级', dataIndex: 'risk_level' }, { title: '限制与风险因素', render: (_, row) => [...row.exclusions, ...(row.risk_factors ?? [])].join('；') || '满足条件' }]} /></Card>
       <Card title="多源证据与影响范围"><Collapse items={result.evidence.map(e => ({ key: e.id, label: <Space><Tag>{e.source_type}</Tag><Tag color={e.status === 'AVAILABLE' ? 'green' : 'orange'}>{e.status}</Tag><span>{e.id}</span></Space>, children: <><Typography.Text>检索时间：{e.retrieved_at}</Typography.Text><pre style={{ whiteSpace: 'pre-wrap', overflowWrap: 'anywhere' }}>{JSON.stringify(e.payload, null, 2)}</pre></> }))} /></Card>

@@ -1,4 +1,5 @@
-"""Read-only, deterministic risk assessment; no LLM or procurement writes."""
+"""Read-only risk assessment: rules decide scores and recommendations; an optional LLM only words the narrative."""
+import json
 import os
 from datetime import datetime, timezone, timedelta
 from .risk_evidence import collect_evidence, business_base
@@ -7,6 +8,10 @@ import httpx
 from fastapi import FastAPI, APIRouter, HTTPException
 from pydantic import BaseModel, Field, ValidationError
 from langgraph.graph import StateGraph, START, END
+from .llm import RiskNarrative, generate, provider
+from .observability import traced
+
+CONFIGURED=object()  # sentinel: use the LLM provider selected by settings
 
 class AssessmentRequest(BaseModel):
     part_number: str = Field(min_length=1,max_length=80,pattern=r"^[A-Za-z0-9_-]+$")
@@ -35,6 +40,7 @@ class State(TypedDict, total=False):
     analysis_status: str
     scenario: dict
     explanation: str
+    narrative: dict
 
 def fetch_candidates(part):
     base=os.getenv("FACTORYOPS_BUSINESS_URL","http://localhost:8081/api/v1").rstrip("/")
@@ -48,9 +54,20 @@ def fetch_candidates(part):
     except (httpx.HTTPError,ValueError) as exc:
         raise HTTPException(503,"business service unavailable or invalid response") from exc
 
-def build_risk_graph(fetch=None, evidence_provider=None):
+def narrative_prompt(state):
+    rows=[{k:r[k] for k in ("supplierCode","base_score","graph_penalty","risk_score","risk_level","exclusions")} for r in state["assessments"]]
+    evidence=[{"id":e["id"],"source_type":e["source_type"],"status":e["status"],"payload":json.dumps(e["payload"],default=str)[:1000]} for e in state["evidence"]]
+    return ("Explain this supplier risk assessment for a procurement reviewer. The scores, exclusions and recommendation order were computed by fixed rules; "
+            "describe them faithfully and do not propose a different supplier or ranking.\n"
+            f"Status: {state['analysis_status']}\nCurrent supplier: {state['request']['current_supplier']}\n"
+            f"Assessments: {json.dumps(rows)}\nRecommended order: {[r['supplierCode'] for r in state['recommendations']]}\n"
+            f"Warnings: {json.dumps(state['warnings'])}\nEvidence: {json.dumps(evidence)}\n"
+            "Return JSON with keys: summary (string), key_risks (list of strings), evidence_ids (ids from Evidence that you relied on).")
+
+def build_risk_graph(fetch=None, evidence_provider=None, llm=CONFIGURED):
     fetch = fetch or fetch_candidates
     evidence_provider = evidence_provider or collect_evidence
+    llm = provider() if llm is CONFIGURED else llm
     def collect(state):
         return {"candidates":fetch(state["request"]["part_number"])}
     def assess(state):
@@ -112,18 +129,24 @@ def build_risk_graph(fetch=None, evidence_provider=None):
         citations=", ".join(e["id"] for e in state["evidence"] if e["status"] in ("AVAILABLE","DEMO"))
         return {"analysis_status":status,"explanation":f"{len(state['recommendations'])} eligible alternate(s), constrained by qualification, capacity and lead time. Score includes 15-point common-upstream penalty where observed. Evidence: {citations or 'none'}. Human review required; no sourcing change executed."}
 
+    def explain(state):
+        # Runs after the rule-based outcome is final and may only add the narrative field.
+        result,failure=generate(llm,narrative_prompt(state),RiskNarrative,{e["id"] for e in state["evidence"]})
+        if result is None: return {"narrative":{"source":"template","summary":state["explanation"],"key_risks":state["warnings"],"evidence_ids":[],"fallback_reason":failure}}
+        return {"narrative":{"source":"llm",**result.model_dump(),"fallback_reason":None}}
+
     graph=StateGraph(State)
-    graph.add_node("collect",collect);graph.add_node("assess",assess);graph.add_node("enrich",enrich);graph.add_node("recommend",recommend)
-    graph.add_node("ready",lambda s:finish(s,"READY_FOR_REVIEW"))
-    graph.add_node("needs_evidence",lambda s:finish(s,"NEEDS_EVIDENCE"))
-    graph.add_edge(START,"collect");graph.add_edge("collect","assess");graph.add_edge("assess","enrich");graph.add_edge("enrich","recommend");graph.add_conditional_edges("recommend",route,{"ready":"ready","needs_evidence":"needs_evidence"});graph.add_edge("ready",END);graph.add_edge("needs_evidence",END)
+    nodes={"collect":collect,"assess":assess,"enrich":enrich,"recommend":recommend,
+           "ready":lambda s:finish(s,"READY_FOR_REVIEW"),"needs_evidence":lambda s:finish(s,"NEEDS_EVIDENCE"),"explain":explain}
+    for name,fn in nodes.items(): graph.add_node(name,traced("supplier_risk",name,fn))
+    graph.add_edge(START,"collect");graph.add_edge("collect","assess");graph.add_edge("assess","enrich");graph.add_edge("enrich","recommend");graph.add_conditional_edges("recommend",route,{"ready":"ready","needs_evidence":"needs_evidence"});graph.add_edge("ready","explain");graph.add_edge("needs_evidence","explain");graph.add_edge("explain",END)
     return graph.compile()
 
 router=APIRouter()
 @router.post("/api/v1/supplier-risk/assess")
 def assess(request:AssessmentRequest):
     result=build_risk_graph().invoke({"request":request.model_dump()})
-    return {"part_number":request.part_number,"request":request.model_dump(),"method":"rules-v2: delivery 50%, quality 30%, lead time 20%; +15 shared upstream risk","requires_human_approval":True,**{k:result[k] for k in ("assessments","recommendations","warnings","evidence","analysis_status","scenario","explanation")}}
+    return {"part_number":request.part_number,"request":request.model_dump(),"method":"rules-v2: delivery 50%, quality 30%, lead time 20%; +15 shared upstream risk","requires_human_approval":True,**{k:result[k] for k in ("assessments","recommendations","warnings","evidence","analysis_status","scenario","explanation","narrative")}}
 
 class ReviewRequest(BaseModel):
     request_key: str = Field(min_length=1,max_length=80,pattern=r"^[A-Za-z0-9_-]+$")

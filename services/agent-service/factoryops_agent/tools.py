@@ -10,6 +10,11 @@ class BusinessTools:
     def part_impact(self,n:str): return self.get(f"/parts/{n}/impact")
     def quality_case(self,n:str): return self.get(f"/quality-cases/{n}")
     def create_action(self,n:str,payload:dict): r=self.client.post(f"/quality-cases/{n}/actions",json=payload); r.raise_for_status(); return r.json()
+    def batch_supplier(self,case_number:str,part_number:str,batch_number:str)->str|None:
+        """Supplier of the batch, taken from the quality case linkage (the batch payload hides it)."""
+        r=self.client.get("/supplier-risk/context",params={"partNumber":part_number,"caseNumber":case_number}); r.raise_for_status()
+        rows=r.json().get("cases",[])
+        return next((r["supplierCode"] for r in rows if r.get("batchNumber")==batch_number),None)
 
 class GraphTools:
     def impact(self,part_number:str)->list[dict]:

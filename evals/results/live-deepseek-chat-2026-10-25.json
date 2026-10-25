@@ -1,0 +1,177 @@
+{
+  "run_at": "2026-10-25T14:42:24+00:00",
+  "live_llm": true,
+  "model": "deepseek-chat",
+  "base_url": "https://api.deepseek.com",
+  "json_mode": true,
+  "summary": {
+    "cases": 18,
+    "passed": 18,
+    "llm_output_accepted": 18,
+    "llm_fallbacks": {}
+  },
+  "cases": [
+    {
+      "id": "Q-01",
+      "flow": "quality",
+      "title": "All three sources available, no LLM configured",
+      "passed": true,
+      "failures": [],
+      "answer_source": "llm",
+      "fallback_reason": null
+    },
+    {
+      "id": "Q-02",
+      "flow": "quality",
+      "title": "Valid structured LLM recommendation is used, approval still required",
+      "passed": true,
+      "failures": [],
+      "answer_source": "llm",
+      "fallback_reason": null
+    },
+    {
+      "id": "Q-03",
+      "flow": "quality",
+      "title": "LLM cites evidence it was never given",
+      "passed": true,
+      "failures": [],
+      "answer_source": "llm",
+      "fallback_reason": null
+    },
+    {
+      "id": "Q-04",
+      "flow": "quality",
+      "title": "LLM returns non-JSON output",
+      "passed": true,
+      "failures": [],
+      "answer_source": "llm",
+      "fallback_reason": null
+    },
+    {
+      "id": "Q-05",
+      "flow": "quality",
+      "title": "Document store unavailable",
+      "passed": true,
+      "failures": [],
+      "answer_source": "llm",
+      "fallback_reason": null
+    },
+    {
+      "id": "Q-06",
+      "flow": "quality",
+      "title": "Graph database unavailable",
+      "passed": true,
+      "failures": [],
+      "answer_source": "llm",
+      "fallback_reason": null
+    },
+    {
+      "id": "Q-07",
+      "flow": "quality",
+      "title": "No quality document matches the question",
+      "passed": true,
+      "failures": [],
+      "answer_source": "llm",
+      "fallback_reason": null
+    },
+    {
+      "id": "Q-08",
+      "flow": "quality",
+      "title": "Supplier passed explicitly instead of resolved from the batch",
+      "passed": true,
+      "failures": [],
+      "answer_source": "llm",
+      "fallback_reason": null
+    },
+    {
+      "id": "R-01",
+      "flow": "risk",
+      "title": "Complete evidence, several candidates",
+      "passed": true,
+      "failures": [],
+      "answer_source": "llm",
+      "fallback_reason": null
+    },
+    {
+      "id": "R-02",
+      "flow": "risk",
+      "title": "Document evidence missing",
+      "passed": true,
+      "failures": [],
+      "answer_source": "llm",
+      "fallback_reason": null
+    },
+    {
+      "id": "R-03",
+      "flow": "risk",
+      "title": "Graph and BOM disagree on affected vehicles",
+      "passed": true,
+      "failures": [],
+      "answer_source": "llm",
+      "fallback_reason": null
+    },
+    {
+      "id": "R-04",
+      "flow": "risk",
+      "title": "Quality case does not implicate the current supplier",
+      "passed": true,
+      "failures": [],
+      "answer_source": "llm",
+      "fallback_reason": null
+    },
+    {
+      "id": "R-05",
+      "flow": "risk",
+      "title": "No eligible alternate supplier",
+      "passed": true,
+      "failures": [],
+      "answer_source": "llm",
+      "fallback_reason": null
+    },
+    {
+      "id": "R-06",
+      "flow": "risk",
+      "title": "Shared upstream dependency reorders the ranking",
+      "passed": true,
+      "failures": [],
+      "answer_source": "llm",
+      "fallback_reason": null
+    },
+    {
+      "id": "R-07",
+      "flow": "risk",
+      "title": "Relaxed deadline scenario is reported but not applied",
+      "passed": true,
+      "failures": [],
+      "answer_source": "llm",
+      "fallback_reason": null
+    },
+    {
+      "id": "R-08",
+      "flow": "risk",
+      "title": "Stale metrics exclude an otherwise best candidate",
+      "passed": true,
+      "failures": [],
+      "answer_source": "llm",
+      "fallback_reason": null
+    },
+    {
+      "id": "R-09",
+      "flow": "risk",
+      "title": "LLM narrative argues for an excluded supplier",
+      "passed": true,
+      "failures": [],
+      "answer_source": "llm",
+      "fallback_reason": null
+    },
+    {
+      "id": "R-10",
+      "flow": "risk",
+      "title": "Demo evidence can never enable approval",
+      "passed": true,
+      "failures": [],
+      "answer_source": "llm",
+      "fallback_reason": null
+    }
+  ]
+}

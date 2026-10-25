@@ -43,6 +43,8 @@ interface EvidenceItem {
 interface AgentRun {
   evidence: EvidenceItem[];
   answer?: string;
+  answer_source?: 'llm' | 'template';
+  recommendation?: { evidence_ids: string[]; actions: string[]; confidence: number | null };
   proposed_action?: {
     actionType?: string;
     description?: string;
@@ -294,6 +296,8 @@ export default function QualityOps() {
                     <Descriptions.Item label="证据数量">{evidence.length} 条</Descriptions.Item>
                     <Descriptions.Item label="数据模式">{mode === 'live' ? '实时服务返回' : '离线体验数据，不代表真实业务状态'}</Descriptions.Item>
                     <Descriptions.Item label="完成时间">{finishedAt}</Descriptions.Item>
+                    <Descriptions.Item label="结论来源">{run.answer_source === 'llm' ? `大模型生成（置信度 ${run.recommendation?.confidence ?? '-'}）` : '规则模板'}</Descriptions.Item>
+                    <Descriptions.Item label="依据证据">{run.recommendation?.evidence_ids.join('、') || '-'}</Descriptions.Item>
                   </Descriptions>
                   <Alert style={{ marginTop: 16 }} type="warning" showIcon message="智能体结论" description={run.answer || '证据支持立即启动批次遏制，等待负责人审批。'} />
                 </>
